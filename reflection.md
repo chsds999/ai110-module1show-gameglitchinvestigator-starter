@@ -48,6 +48,7 @@ Document at least 3 bugs you found. Add rows as needed.
 
 ---
 
+
 ## 5. Looking ahead: your developer habits
 
 - What is one habit or strategy from this project that you want to reuse in future labs or projects?
