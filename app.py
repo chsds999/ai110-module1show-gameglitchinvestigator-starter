@@ -1,5 +1,7 @@
 import random
 import streamlit as st
+from logic_utils import check_guess
+
 
 def get_range_for_difficulty(difficulty: str):
     if difficulty == "Easy":
@@ -20,6 +22,7 @@ def parse_guess(raw: str):
 
     try:
         if "." in raw:
+            # FIXME: Logic breaks here — decimals are silently truncated.
             value = int(float(raw))
         else:
             value = int(raw)
@@ -28,27 +31,9 @@ def parse_guess(raw: str):
 
     return True, value, None
 
-
-def check_guess(guess, secret):
-    if guess == secret:
-        return "Win", "🎉 Correct!"
-
-    try:
-        if guess > secret:
-            return "Too High", "📈 Go HIGHER!"
-        else:
-            return "Too Low", "📉 Go LOWER!"
-    except TypeError:
-        g = str(guess)
-        if g == secret:
-            return "Win", "🎉 Correct!"
-        if g > secret:
-            return "Too High", "📈 Go HIGHER!"
-        return "Too Low", "📉 Go LOWER!"
-
-
 def update_score(current_score: int, outcome: str, attempt_number: int):
     if outcome == "Win":
+        # FIXME: Logic breaks here — check the extra attempt against scoring rules.
         points = 100 - 10 * (attempt_number + 1)
         if points < 10:
             points = 10
@@ -56,6 +41,7 @@ def update_score(current_score: int, outcome: str, attempt_number: int):
 
     if outcome == "Too High":
         if attempt_number % 2 == 0:
+            # FIXME: Logic breaks here — an incorrect guess can increase the score.
             return current_score + 5
         return current_score - 5
 
@@ -63,6 +49,7 @@ def update_score(current_score: int, outcome: str, attempt_number: int):
         return current_score - 5
 
     return current_score
+
 
 st.set_page_config(page_title="Glitchy Guesser", page_icon="🎮")
 
@@ -89,10 +76,12 @@ low, high = get_range_for_difficulty(difficulty)
 st.sidebar.caption(f"Range: {low} to {high}")
 st.sidebar.caption(f"Attempts allowed: {attempt_limit}")
 
+# FIXME: Logic breaks here — changing difficulty does not reset the existing secret.
 if "secret" not in st.session_state:
     st.session_state.secret = random.randint(low, high)
 
 if "attempts" not in st.session_state:
+    # FIXME: Logic breaks here — a new game starts with an attempt already counted.
     st.session_state.attempts = 1
 
 if "score" not in st.session_state:
@@ -107,7 +96,9 @@ if "history" not in st.session_state:
 st.subheader("Make a guess")
 
 st.info(
+    # FIXME: Logic breaks here — the displayed range ignores difficulty.
     f"Guess a number between 1 and 100. "
+    # FIXME: Logic breaks here — this display runs before submission updates attempts.
     f"Attempts left: {attempt_limit - st.session_state.attempts}"
 )
 
@@ -132,7 +123,9 @@ with col3:
     show_hint = st.checkbox("Show hint", value=True)
 
 if new_game:
+    # FIXME: Logic breaks here — status, score, and history are not reset.
     st.session_state.attempts = 0
+    # FIXME: Logic breaks here — the new secret ignores the selected difficulty.
     st.session_state.secret = random.randint(1, 100)
     st.success("New game started.")
     st.rerun()
@@ -145,6 +138,7 @@ if st.session_state.status != "playing":
     st.stop()
 
 if submit:
+    # FIXME: Logic breaks here — invalid input consumes an attempt.
     st.session_state.attempts += 1
 
     ok, guess_int, err = parse_guess(raw_guess)
@@ -152,15 +146,16 @@ if submit:
     if not ok:
         st.session_state.history.append(raw_guess)
         st.error(err)
+        # FIXME: Logic breaks here — invalid input can exceed the limit without ending the game.
     else:
+        # FIXME: Logic breaks here — guesses are not checked against the allowed range.
         st.session_state.history.append(guess_int)
 
-        if st.session_state.attempts % 2 == 0:
-            secret = str(st.session_state.secret)
-        else:
-            secret = st.session_state.secret
-
-        outcome, message = check_guess(guess_int, secret)
+        # FIX: Keep comparisons numeric on every attempt.
+        outcome, message = check_guess(
+            guess_int,
+            st.session_state.secret,
+        )
 
         if show_hint:
             st.warning(message)
